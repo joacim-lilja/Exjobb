@@ -1,0 +1,101 @@
+WindowManager:
+    MainWindow:
+    TestWindow:
+
+<MainWindow>:
+    name: "main"
+
+    GridLayout:
+        cols: 1
+
+        Label:
+            text: "Main screen"
+            size_hint: (1, .05)
+
+        GridLayout:
+            rows: 10
+
+            Button:
+                text: "To tests"
+                size_hint: (.7, .1)
+                on_release:
+                    app.root.current = "tests"
+                    root.manager.transition.direction = "left"
+
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+
+
+<TestWindow>:
+    name: "tests"
+
+    GridLayout:
+        cols: 1
+
+        Label:
+            text: "Test screen"
+            size_hint: (1, .05)
+
+        GridLayout:
+            rows: 10
+
+            Button:
+                text: "Run test 1"
+                size_hint: (.7, .1)
+
+            Button:
+                text: "Run test 2"
+                size_hint: (.7, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+            Label:
+                text: ""
+                size_hint: (1, .1)
+
+            Button:
+                text: "Back"
+                size_hint: (.7, .1)
+                on_release:
+                    app.root.current = "main"
+                    root.manager.transition.direction = "right"
