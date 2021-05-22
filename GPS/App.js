@@ -17,7 +17,7 @@ import {
   useColorScheme,
   View,
   Button,
-  PermissionsAndroid
+  PermissionsAndroid,
 } from 'react-native';
 
 import {
@@ -84,12 +84,13 @@ const HomeScreen = ({ navigation }) => {
 
 const ProfileScreen = ({ navigation, route }) => {
   // var hasLocationPermission = true;
-  var location = Geolocation.getCurrentPosition(
+  const [latitude, setLatitude] = React.useState(0);
+  const [longitude, setLongitude] = React.useState(1);
+    
+  Geolocation.getCurrentPosition(
     (position) => {
-      location = position
-      console.log("location: ")
-      console.log(location);
-      return { location };
+      setLatitude(position.coords.latitude);
+      setLongitude(position.coords.longitude);
     },
     (error) => {
       console.log(error);
@@ -97,15 +98,15 @@ const ProfileScreen = ({ navigation, route }) => {
     { enableHighAccuracy: true }
   );
 
+  console.log((latitude + " " + longitude));
 
-  console.log("this is the goddamn location: " + location);
   return (
     <View>
       <Text>This is {route.params.name}'s profile</Text>
-      <MapView
+      <MapView style={{height: 500, width: 500}}
         initialRegion={{
-          latitude: 37,
-          longitude: -122,
+          latitude: latitude,
+          longitude: longitude,
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421
         }
