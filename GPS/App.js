@@ -43,7 +43,7 @@ import { tsConstructorType } from '@babel/types';
 
 // Map
 
-import MapView from 'react-native-maps';
+import MapView, { AnimatedRegion, Animated } from 'react-native-maps';
 
 // App
 
@@ -86,7 +86,7 @@ const ProfileScreen = ({ navigation, route }) => {
   // var hasLocationPermission = true;
   const [latitude, setLatitude] = React.useState(0);
   const [longitude, setLongitude] = React.useState(1);
-    
+
   Geolocation.getCurrentPosition(
     (position) => {
       setLatitude(position.coords.latitude);
@@ -99,18 +99,18 @@ const ProfileScreen = ({ navigation, route }) => {
   );
 
   console.log((latitude + " " + longitude));
-
+  var region = {
+    latitude: latitude,
+    longitude: longitude,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  };
+  
   return (
     <View>
       <Text>This is {route.params.name}'s profile</Text>
-      <MapView style={{height: 500, width: 500}}
-        initialRegion={{
-          latitude: latitude,
-          longitude: longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421
-        }
-        }
+      <MapView style={{top: 0, left: 0, height: 450}}
+        initialRegion={region}
       />
     </View>
   )
