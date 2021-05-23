@@ -18,6 +18,7 @@ import {
   View,
   Button,
   PermissionsAndroid,
+  NativeEventEmitter,
 } from 'react-native';
 
 import {
@@ -39,7 +40,7 @@ const Stack = createStackNavigator();
 //Geolocation
 
 import Geolocation, { getCurrentPosition } from 'react-native-geolocation-service';
-import { tsConstructorType } from '@babel/types';
+import { tsConstructorType, whileStatement } from '@babel/types';
 
 // Map
 
@@ -62,7 +63,7 @@ const App: () => Node = () => {
           component={HomeScreen}
           options={{ title: 'Welcome' }}
         />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Map" component={MapScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -74,45 +75,86 @@ const App: () => Node = () => {
 const HomeScreen = ({ navigation }) => {
   return (
     <Button
-      title="Go to Joacims profile"
-      onPress={() => navigation.navigate('Profile', { name: 'Joacim' })}
+      title="Go to Map"
+      onPress={() => navigation.navigate('Map')}
     />
   );
 };
 
 // Map Screen
 
-const ProfileScreen = ({ navigation, route }) => {
+const MapScreen = ({ navigation, route }) => {
   // var hasLocationPermission = true;
   const [latitude, setLatitude] = React.useState(0);
-  const [longitude, setLongitude] = React.useState(1);
+  const [longitude, setLongitude] = React.useState(0);
+  const [count, setCount] = React.useState(true);
+  const [centerOnUser, setCenterOnUser] = React.useState(false);
+  const [startLat, setStartLat] = React.useState(-1);
+  const [startLong, setStartLong] = React.useState(-1);
+  const [endLat, setEndLat] = React.useState(-1);
+  const [endLong, setEndLong] = React.useState(-1);
 
-  Geolocation.getCurrentPosition(
-    (position) => {
-      setLatitude(position.coords.latitude);
-      setLongitude(position.coords.longitude);
-    },
-    (error) => {
-      console.log(error);
-    },
-    { enableHighAccuracy: true }
-  );
 
-  console.log((latitude + " " + longitude));
-  var region = {
-    latitude: latitude,
-    longitude: longitude,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
-  };
-  
+  // Update coords on map on user movement
+  React.useEffect(() => {
+    Geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude);
+        setLongitude(position.coords.longitude);
+        setEndLat(position.coords.latitude);
+        setEndLong(position.coords.longitude);
+        console.log(position.coords.latitude, position.coords.longitude);
+      },
+      (error) => {
+        console.log(error);
+      },
+      { enableHighAccuracy: true }
+    );
+  }, [count]);
+  var myRegion = { latitude: latitude, longitude: longitude, latitudeDelta: 0.5, longitudeDelta: 0.3 };
+  console.log(myRegion);
+  // Returns View
   return (
     <View>
-      <Text>This is {route.params.name}'s profile</Text>
-      <MapView style={{top: 0, left: 0, height: 450}}
-        initialRegion={region}
+      <Button title="Start measurement" onPress={() => {
+        setCenterOnUser(true);
+        setStartLat(latitude);
+        setStartLong(longitude);
+        console.log(startLat, startLong);
+      }} />
+      <Button title="Stop measurement" onPress={() => {
+        setCenterOnUser(false);
+        setEndLat(latitude);
+        setEndLong(longitude);
+        console.log(startLat, startLong);
+        console.log(endLat, endLong);
+      }} />
+      <MapView
+        region={myRegion}
+        style={{ top: 0, left: 0, height: 450 }}
+        showsUserLocation={true}
+        userLocationUpdateInterval={500}
+        onUserLocationChange={() => {
+          if (centerOnUser) {
+            setLatitude(latitude);
+            setLongitude(longitude);
+            setCount(!count);
+          }
+        }}
       />
-    </View>
+      <Text>
+        Starting Coordinates:
+      </Text>
+      <Text>
+        Latitude: {startLat}       Longitude: {startLong}
+      </Text>
+      <Text>
+        Ending Coordinates:
+      </Text>
+      <Text>
+        Latitude: {endLat}        Longitude: {endLong}
+      </Text>
+    </View >
   )
 };
 
