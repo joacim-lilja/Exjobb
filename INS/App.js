@@ -1,7 +1,4 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
+/*
  * @format
  * @flow strict-local
  */
@@ -15,25 +12,12 @@
 import * as React from 'react';
 import type { Node } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
     StyleSheet,
     Text,
-    useColorScheme,
     View,
     Button,
-    PermissionsAndroid,
-    NativeEventEmitter,
 } from 'react-native';
 
-import {
-    Colors,
-    DebugInstructions,
-    Header,
-    LearnMoreLinks,
-    ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
 
 
 // Navigation
@@ -45,25 +29,22 @@ const Stack = createStackNavigator();
 
 
 //Geolocation
-import Geolocation, { getCurrentPosition } from 'react-native-geolocation-service';
-import { tsConstructorType, whileStatement } from '@babel/types';
+import Geolocation from 'react-native-geolocation-service';
 
 
 // Map
-import MapView, { AnimatedRegion, Animated } from 'react-native-maps';
-import { moveSyntheticComments } from 'typescript';
+import MapView, { } from 'react-native-maps';
 
 
 // Sensors
 import {
     accelerometer,
     gyroscope,
-    magnetometer,
     setUpdateIntervalForType,
     SensorTypes
 } from 'react-native-sensors';
 
-setUpdateIntervalForType(SensorTypes.accelerometer, 100);
+setUpdateIntervalForType(SensorTypes.accelerometer, 200);
 setUpdateIntervalForType(SensorTypes.gyroscope, 100);
 
 
@@ -113,54 +94,66 @@ const MapScreen = () => {
     const [endLat, setEndLat] = React.useState(-1);
     const [endLong, setEndLong] = React.useState(-1);
 
-    //INS speed and distance
+    //INS Speed and Distance
     const [speed, setSpeed] = React.useState(0);
     const [distance, setDistance] = React.useState(0);
 
-    //INS rotation and angle
+    //INS Rotation and Direction
     const [rotation, setRotation] = React.useState(0);
-    const [angle, setAngle] = React.useState(0);
+    const [direction, setDirection] = React.useState(0);
 
 
     // Init coords
     React.useEffect(() => {
+        // Get initial Coordinates from GPS
         Geolocation.getCurrentPosition(
             (position) => {
-                setLatitude(position.coords.latitude);
-                setLongitude(position.coords.longitude);
-                setEndLat(position.coords.latitude);
-                setEndLong(position.coords.longitude);
+                setStartLat(position.coords.latitude);
+                setStartLong(position.coords.longitude);
             },
             (error) => {
                 console.log(error);
             },
             { enableHighAccuracy: true }
         );
-    }, []);
 
-    // Update coords on map on user movement
-    React.useEffect(() => {
         // Subscribe to accelerometer data and measure speed and distance
         const accelSub = accelerometer.subscribe(({ x, y, z }) => {
-            console.log(x.toFixed(2), y.toFixed(2), z.toFixed(2));
-            setSpeed(parseFloat((speed * 0.85 + (x + y + z - 9.82) * 0.15).toFixed(2)));
-            setDistance(parseFloat((distance + speed).toFixed(2)));
+            setSpeed(parseFloat((speed * 0.9 + (x + y + z - 9.82) * 0.1).toFixed(2)));
         });
 
-        //Subscribe to gyroscope data and measure angle and rotation
-        const gyroSub = gyroscope.subscribe(({ x, y, z }) => {
-            setRotation(parseFloat(rotation*0.85 + z*0.15).toFixed(2));
-            console.log(rotation);
-            setAngle(parseFloat(angle + rotation).toFixed(2));
-            console.log(parseFloat(angle + rotation));
+        //Subscribe to gyroscope data and measure direction and rotation
+        const gyroSub = gyroscope.subscribe(({ z }) => {
+            setRotation(parseFloat((rotation * 0.9 + z * 0.1).toFixed(2)));
         });
         return () => {
             accelSub.unsubscribe();
             gyroSub.unsubscribe();
         }
+    }, []);
+
+    // Update coords on map on user movement
+    React.useEffect(() => {
+        //Measures Acceleration from Accelerometer to measure Distance
+        setDistance(
+            parseFloat(
+                (distance + Math.abs(speed)).toFixed(2)
+            )
+        );
+        //Measures Rotation from Gyroscope to measaure Direction
+        setDirection(
+            parseFloat(
+                (direction + rotation).toFixed(2)
+            )
+        );
     }, [count]);
 
-    var myRegion = { latitude: latitude, longitude: longitude, latitudeDelta: 0.5, longitudeDelta: 0.3 };
+    var myRegion = {
+        latitude: latitude,
+        longitude: longitude,
+        latitudeDelta: 0.2,
+        longitudeDelta: 0.2
+    };
 
     // Returns View
     return (
@@ -173,20 +166,17 @@ const MapScreen = () => {
                 }} />
                 <Button title="Stop measurement" onPress={() => {
                     setCenterOnUser(false);
-                    setEndLat(latitude);
-                    setEndLong(longitude);
+                    setEndLat(-1);
+                    setEndLong(-1);
                 }} />
                 <MapView
                     region={myRegion}
                     style={{ top: 0, left: 0, height: 450 }}
                     showsUserLocation={true}
-                    userLocationUpdateInterval={100}
+                    userLocationUpdateInterval={1000}
                     onUserLocationChange={() => {
                         if (centerOnUser) {
-                            setLatitude(latitude);
-                            setLongitude(longitude);
                             setCount(!count);
-                            console.log('mapRender');
                         }
                     }}
                 />
@@ -207,7 +197,7 @@ const MapScreen = () => {
                 <Text>Distance: {distance}</Text>
                 <Text>Speed: {speed}</Text>
                 <Text>Rotation: {rotation}</Text>
-                <Text>Angle: {angle}</Text>
+                <Text>Direction: {direction}</Text>
                 <Text>{centerOnUser ? 'measuring' : 'waiting'}</Text>
             </View >
         </View>
