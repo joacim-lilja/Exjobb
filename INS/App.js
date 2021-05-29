@@ -28,14 +28,12 @@ import MapView from 'react-native-maps';
 // Sensors
 import {
   accelerometer,
-  gyroscope,
   magnetometer,
   setUpdateIntervalForType,
   SensorTypes,
 } from 'react-native-sensors';
 
 setUpdateIntervalForType(SensorTypes.accelerometer, 100);
-setUpdateIntervalForType(SensorTypes.gyroscope, 100);
 setUpdateIntervalForType(SensorTypes.magnetometer, 100);
 
 // App
@@ -65,8 +63,6 @@ const HomeScreen = ({navigation}) => {
 // Map Screen
 const MapScreen = () => {
   // Coordinates
-  const [latitude, setLatitude] = React.useState(0);
-  const [longitude, setLongitude] = React.useState(0);
 
   // Toggle for INS Measurements update
   const [count] = React.useState(true);
@@ -80,30 +76,12 @@ const MapScreen = () => {
   const [endLat, setEndLat] = React.useState(-1);
   const [endLong, setEndLong] = React.useState(-1);
 
-  //INS Speed and Distance
+  //INS Speed and Angle
   const [speed, setSpeed] = React.useState(0);
-
-  //INS Rotation and Direction
-  const [rotation, setRotation] = React.useState(0);
   const [angle, setAngle] = React.useState(0);
 
+  //Reducer interval
   const [interval, SetInterval] = React.useState(0);
-
-  function reducer(state, action) {
-    return {
-      count: !state.count,
-      distance: parseFloat((state.distance + speed).toFixed(2)),
-      direction: parseFloat((state.direction + rotation).toFixed(2)),
-      angle: parseFloat(angle.toFixed(2)),
-    };
-  }
-
-  const [state, dispatch] = React.useReducer(reducer, {
-    count: false,
-    distance: 0,
-    direction: 0,
-    angle: 0,
-  });
 
   // Init coords
   React.useEffect(() => {
@@ -121,37 +99,66 @@ const MapScreen = () => {
 
     // Subscribe to accelerometer data and measure speed and distance
     const accelSub = accelerometer.subscribe(({x, y}) => {
-      setSpeed(parseFloat(((speed * 0.05 + (x + y) * 0.95) / 10).toFixed(2)));
+      setSpeed(parseFloat(((speed * 0.05 + (x + y) * 0.95) / 10)));
     });
 
+    //Subscribe to magnetometer data and measure angle
     const magSub = magnetometer.subscribe(({x, y}) => {
       if (Math.atan2(y, x) >= 0) {
-        setAngle(Math.atan2(y, x) * (180 / Math.PI));
+        setAngle(Math.atan2(y, x));
       } else {
-        setAngle((Math.atan2(y, x) + 2 * Math.PI) * (180 / Math.PI));
+        setAngle(Math.atan2(y, x) + 2 * Math.PI);
       }
     });
 
-    //Subscribe to gyroscope data and measure direction and rotation
-    const gyroSub = gyroscope.subscribe(({z}) => {
-      setRotation(
-        parseFloat(
-          ((rotation * 0.05 + z * 0.95 * (180 / Math.PI)) / 10).toFixed(2)
-        )
-      );
-    });
+    //Handle leaving screen
     return () => {
       accelSub.unsubscribe();
-      gyroSub.unsubscribe();
       magSub.unsubscribe();
     };
   }, []);
 
-  var myRegion = {
+  //Reducer Hook
+  function reducer(state) {
+    switch (state.counter) {
+      case 10:
+        return {
+          latitude:
+          parseFloat(state.latitude - state.distance * Math.sin(state.angle)*0.000009009),
+          longitude:
+          parseFloat(state.longitude -
+            state.distance * Math.cos(state.angle)*0.0000168634),
+          distance: 0,
+        };
+
+      default:
+        return {
+          count: !state.count,
+          distance: parseFloat((state.distance + speed)),
+          angle: parseFloat(angle),
+          counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
+          latitude:
+            state.latitude === -1 ? startLat : state.latitude,
+          longitude:
+            state.longitude === -1 ? startLong : state.longitude,
+        };
+    }
+  }
+
+  const [state, dispatch] = React.useReducer(reducer, {
+    count: false,
+    distance: 0,
+    angle: 0,
+    counter: 0,
     latitude: startLat,
     longitude: startLong,
-    latitudeDelta: 0.2,
-    longitudeDelta: 0.2,
+  });
+
+  var myRegion = {
+    latitude: state.latitude  === -1 ? startLat: state.latitude,
+    longitude: state.longitude  === -1 ? startLong: state.longitude,
+    latitudeDelta: 0.002,
+    longitudeDelta: 0.002,
   };
   // Returns View
   return (
@@ -167,7 +174,6 @@ const MapScreen = () => {
               SetInterval(
                 setInterval(() => {
                   dispatch();
-                  console.log(count);
                 }, 100),
               );
             }
@@ -189,27 +195,21 @@ const MapScreen = () => {
           style={{top: 0, left: 0, height: 450}}
           showsUserLocation={true}
           userLocationUpdateInterval={1000}
-          // onUserLocationChange={() => {
-          //     if (centerOnUser) {
-          //         setCount(!count);
-          //     }
-          // }}
         />
       </View>
       <View>
         <Text>Starting Coordinates:</Text>
         <Text>
-          Latitude: {startLat} Longitude: {startLong}
+          Latitude: {startLat.toFixed(5)} Longitude: {startLong.toFixed(5)}
         </Text>
         <Text>Ending Coordinates:</Text>
         <Text>
-          Latitude: {endLat} Longitude: {endLong}
+          Latitude: {state.latitude.toFixed(5)} Longitude: {state.longitude.toFixed(5)}
         </Text>
-        <Text>Distance: {state.distance}</Text>
-        <Text>Speed: {speed}</Text>
-        <Text>Rotation: {rotation}</Text>
-        <Text>Direction: {state.direction}</Text>
-        <Text>Angle: {state.angle}</Text>
+        <Text>Distance: {state.distance.toFixed(2)}</Text>
+        <Text>Speed: {speed.toFixed(2)}</Text>
+        <Text>Angle: {(state.angle * (180 / Math.PI)).toFixed(2)}</Text>
+        <Text>Counter: {state.counter}</Text>
         <Text>{centerOnUser ? 'measuring' : 'waiting'}</Text>
       </View>
     </View>
