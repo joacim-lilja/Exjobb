@@ -10,7 +10,14 @@
 
 import * as React from 'react';
 import type {Node} from 'react';
-import {StyleSheet, Text, View, Button} from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Button,
+  FlatList,
+  ScrollView,
+} from 'react-native';
 
 // Navigation
 import 'react-native-gesture-handler';
@@ -99,7 +106,7 @@ const MapScreen = () => {
 
     // Subscribe to accelerometer data and measure speed and distance
     const accelSub = accelerometer.subscribe(({x, y}) => {
-      setSpeed(parseFloat(((speed * 0.05 + (x + y) * 0.95) / 10)));
+      setSpeed(parseFloat((speed * 0.05 + (x + y) * 0.95) / 10));
     });
 
     //Subscribe to magnetometer data and measure angle
@@ -123,28 +130,35 @@ const MapScreen = () => {
     switch (state.counter) {
       case 10:
         return {
-          latitude:
-          parseFloat(state.latitude - state.distance * Math.sin(state.angle)*0.000009009),
-          longitude:
-          parseFloat(state.longitude -
-            state.distance * Math.cos(state.angle)*0.0000168634),
+          latitude: parseFloat(
+            state.latitude +
+              state.distance * Math.sin(state.angle) * 0.000009009,
+          ),
+          longitude: parseFloat(
+            state.longitude -
+              state.distance * Math.cos(state.angle) * 0.0000168634,
+          ),
           distance: 0,
+          coordinates:
+            state.coordinates[0].lat === -1
+              ? [{lat: startLat, long: startLong}]
+              : [
+                  {lat: state.latitude, long: state.longitude},
+                  ...state.coordinates,
+                ],
         };
-
       default:
         return {
           count: !state.count,
-          distance: parseFloat((state.distance + speed)),
+          distance: parseFloat(state.distance + speed),
           angle: parseFloat(angle),
           counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
-          latitude:
-            state.latitude === -1 ? startLat : state.latitude,
-          longitude:
-            state.longitude === -1 ? startLong : state.longitude,
+          latitude: state.latitude === -1 ? startLat : state.latitude,
+          longitude: state.longitude === -1 ? startLong : state.longitude,
+          coordinates: state.coordinates,
         };
     }
   }
-
   const [state, dispatch] = React.useReducer(reducer, {
     count: false,
     distance: 0,
@@ -152,17 +166,17 @@ const MapScreen = () => {
     counter: 0,
     latitude: startLat,
     longitude: startLong,
+    coordinates: [{lat: startLat, long: startLong}],
   });
-
   var myRegion = {
-    latitude: state.latitude  === -1 ? startLat: state.latitude,
-    longitude: state.longitude  === -1 ? startLong: state.longitude,
+    latitude: state.latitude === -1 ? startLat : state.latitude,
+    longitude: state.longitude === -1 ? startLong : state.longitude,
     latitudeDelta: 0.002,
     longitudeDelta: 0.002,
   };
   // Returns View
   return (
-    <View>
+    <ScrollView scrolling={true}>
       <View>
         <Button
           title="Start measurement"
@@ -190,6 +204,8 @@ const MapScreen = () => {
             }
           }}
         />
+      </View>
+      <View>
         <MapView
           region={myRegion}
           style={{top: 0, left: 0, height: 450}}
@@ -204,15 +220,17 @@ const MapScreen = () => {
         </Text>
         <Text>Ending Coordinates:</Text>
         <Text>
-          Latitude: {state.latitude.toFixed(5)} Longitude: {state.longitude.toFixed(5)}
+          Latitude: {state.latitude.toFixed(5)} Longitude:{' '}
+          {state.longitude.toFixed(5)}
         </Text>
         <Text>Distance: {state.distance.toFixed(2)}</Text>
         <Text>Speed: {speed.toFixed(2)}</Text>
         <Text>Angle: {(state.angle * (180 / Math.PI)).toFixed(2)}</Text>
         <Text>Counter: {state.counter}</Text>
         <Text>{centerOnUser ? 'measuring' : 'waiting'}</Text>
+        <Text>Number of elements: {state.coordinates.length} </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
