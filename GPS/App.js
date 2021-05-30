@@ -9,28 +9,15 @@
 import * as React from 'react';
 import type { Node } from 'react';
 import {
-    SafeAreaView,
     ScrollView,
-    StatusBar,
     StyleSheet,
     Text,
-    useColorScheme,
     View,
     Button,
-    PermissionsAndroid,
-    NativeEventEmitter,
+    FlatList,
 } from 'react-native';
 
-import {
-    Colors,
-    DebugInstructions,
-    Header,
-    LearnMoreLinks,
-    ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
 // Navigation
-
 import 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -38,24 +25,13 @@ import { createStackNavigator } from '@react-navigation/stack';
 const Stack = createStackNavigator();
 
 //Geolocation
-
-import Geolocation, { getCurrentPosition } from 'react-native-geolocation-service';
-import { tsConstructorType, whileStatement } from '@babel/types';
+import Geolocation from 'react-native-geolocation-service';
 
 // Map
-
-import MapView, { AnimatedRegion, Animated } from 'react-native-maps';
-import { moveSyntheticComments } from 'typescript';
+import MapView from 'react-native-maps';
 
 // App
-
 const App: () => Node = () => {
-    const isDarkMode = useColorScheme() === 'dark';
-
-    const backgroundStyle = {
-        backgroundColor: Colors.darker,
-    };
-
     return (
         <NavigationContainer>
             <Stack.Navigator>
@@ -86,80 +62,112 @@ const HomeScreen = ({ navigation }) => {
 
 const MapScreen = ({ navigation, route }) => {
     // var hasLocationPermission = true;
-    const [latitude, setLatitude] = React.useState(0);
-    const [longitude, setLongitude] = React.useState(0);
-    const [count, setCount] = React.useState(true);
     const [centerOnUser, setCenterOnUser] = React.useState(false);
     const [startLat, setStartLat] = React.useState(-1);
     const [startLong, setStartLong] = React.useState(-1);
-    const [endLat, setEndLat] = React.useState(-1);
-    const [endLong, setEndLong] = React.useState(-1);
+    const [latitude, setLatitude] = React.useState(-1);
+    const [longitude, setLongitude] = React.useState(-1);
+    const [interval, SetInterval] = React.useState(0);
 
+    function reducer(state) {
+        return {
+            counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
+            latitude: state.latitude === -1 ? startLat : latitude,
+            longitude: state.longitude === -1 ? startLong : longitude,
+            coordinates:
+                state.counter === 10
+                    ? state.coordinates[0].lat === -1
+                        ? [{ lat: startLat, long: startLong }]
+                        : [
+                            { lat: state.latitude, long: state.longitude },
+                            ...state.coordinates,
+                        ]
+                    : state.coordinates,
+
+        }
+    }
+
+    const [state, dispatch] = React.useReducer(reducer, {
+        counter: 0,
+        latitude: startLat,
+        longitude: startLong,
+        coordinates: [{ lat: startLat, long: startLong }],
+    });
 
     // Update coords on map on user movement
     React.useEffect(() => {
         Geolocation.getCurrentPosition(
             (position) => {
+                if (startLat === -1) {
+                    setStartLat(position.coords.latitude);
+                    setStartLong(position.coords.longitude);
+                }
                 setLatitude(position.coords.latitude);
                 setLongitude(position.coords.longitude);
-                setEndLat(position.coords.latitude);
-                setEndLong(position.coords.longitude);
-                console.log(position.coords.latitude, position.coords.longitude);
             },
             (error) => {
                 console.log(error);
             },
             { enableHighAccuracy: true }
         );
-    }, [count]);
-    var myRegion = { latitude: latitude, longitude: longitude, latitudeDelta: 0.5, longitudeDelta: 0.3 };
+    }, [state.counter]);
+
+    var myRegion = { latitude: latitude, longitude: longitude, latitudeDelta: 0.007, longitudeDelta: 0.007 };
     console.log(myRegion);
     // Returns View
     return (
-        <View>
+        <ScrollView>
             <View>
                 <Button title="Start measurement" onPress={() => {
-                    setCenterOnUser(true);
-                    setStartLat(latitude);
-                    setStartLong(longitude);
-                    console.log(startLat, startLong);
+                    if (!centerOnUser) {
+                        setCenterOnUser(true);
+                        setStartLat(startLat);
+                        setStartLong(startLong);
+                        SetInterval(
+                            setInterval(() => {
+                                dispatch();
+                            }, 100),
+                        );
+                    }
                 }} />
                 <Button title="Stop measurement" onPress={() => {
-                    setCenterOnUser(false);
-                    setEndLat(latitude);
-                    setEndLong(longitude);
-                    console.log(startLat, startLong);
-                    console.log(endLat, endLong);
+                    if (centerOnUser) {
+                        setCenterOnUser(false);
+                        SetInterval(clearInterval(interval));
+                    }
                 }} />
                 <MapView
                     region={myRegion}
                     style={{ top: 0, left: 0, height: 450 }}
                     showsUserLocation={true}
-                    userLocationUpdateInterval={500}
-                    onUserLocationChange={() => {
-                        if (centerOnUser) {
-                            setLatitude(latitude);
-                            setLongitude(longitude);
-                            setCount(!count);
-                        }
-                    }}
+                    userLocationUpdateInterval={1000}
                 />
             </View >
             <View>
+                <Text>Starting Coordinates:</Text>
                 <Text>
-                    Starting Coordinates:
+                    Latitude: {startLat.toFixed(5)} Longitude: {startLong.toFixed(5)}
                 </Text>
+                <Text>Ending Coordinates:</Text>
                 <Text>
-                    Latitude: {startLat}       Longitude: {startLong}
+                    Latitude: {state.latitude.toFixed(5)} Longitude:{' '}
+                    {state.longitude.toFixed(5)}
                 </Text>
-                <Text>
-                    Ending Coordinates:
-                </Text>
-                <Text>
-                    Latitude: {endLat}        Longitude: {endLong}
-                </Text>
+                <Text>Counter: {state.counter}</Text>
+                <Text>{centerOnUser ? 'measuring' : 'waiting'}</Text>
+                <Text>No of elements: {state.coordinates.length} </Text>
+                <View>
+                    <FlatList
+                        data={state.coordinates}
+                        renderItem={({ item }) => (
+                            <Text>
+                                {item.lat.toFixed(5)} {item.long.toFixed(5)}
+                            </Text>
+                        )}
+                    />
+                </View>
             </View >
-        </View>
+        </ScrollView>
     )
 };
 
