@@ -228,7 +228,13 @@ const MapScreen = () => {
         <Text>Angle: {(state.angle * (180 / Math.PI)).toFixed(2)}</Text>
         <Text>Counter: {state.counter}</Text>
         <Text>{centerOnUser ? 'measuring' : 'waiting'}</Text>
-        <Text>Number of elements: {state.coordinates.length} </Text>
+        <Text>No of elements: {state.coordinates.length} </Text>
+        <View>
+          <FlatList
+            data={state.coordinates}
+            renderItem={({item}) => <Text>{item.lat.toFixed(5)} {item.long.toFixed(5)}</Text>}
+          />
+        </View>
       </View>
     </ScrollView>
   );
