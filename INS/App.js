@@ -69,19 +69,12 @@ const HomeScreen = ({navigation}) => {
 
 // Map Screen
 const MapScreen = () => {
-  // Coordinates
-
-  // Toggle for INS Measurements update
-  const [count] = React.useState(true);
-
   //Center map on user
   const [centerOnUser, setCenterOnUser] = React.useState(false);
 
   // Measured coordinates
   const [startLat, setStartLat] = React.useState(-1);
   const [startLong, setStartLong] = React.useState(-1);
-  const [endLat, setEndLat] = React.useState(-1);
-  const [endLong, setEndLong] = React.useState(-1);
 
   //INS Speed and Angle
   const [speed, setSpeed] = React.useState(0);
@@ -104,9 +97,9 @@ const MapScreen = () => {
       {enableHighAccuracy: true},
     );
 
-    // Subscribe to accelerometer data and measure speed and distance
-    const accelSub = accelerometer.subscribe(({x, y}) => {
-      setSpeed(parseFloat((speed * 0.05 + (x + y) * 0.95) / 10));
+    // Subscribe to accelerometer data and measure speed
+    const accelSub = accelerometer.subscribe(({y}) => {
+      setSpeed(parseFloat(y));
     });
 
     //Subscribe to magnetometer data and measure angle
@@ -124,12 +117,11 @@ const MapScreen = () => {
       magSub.unsubscribe();
     };
   }, []);
-
+  // state.counter === 10 ? 0 :
   //Reducer Hook
   function reducer(state) {
     return {
-      count: !state.count,
-      distance: state.counter === 10 ? 0 : parseFloat(state.distance + speed),
+      speed: parseFloat(state.speed + speed),
       angle: parseFloat(angle),
       counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
       latitude:
@@ -138,7 +130,7 @@ const MapScreen = () => {
           : state.counter === 10
           ? parseFloat(
               state.latitude +
-                state.distance * Math.sin(state.angle) * 0.000009009,
+                state.speed * Math.sin(state.angle) * 0.000009009,
             )
           : state.latitude,
       longitude:
@@ -147,7 +139,7 @@ const MapScreen = () => {
           : state.counter === 10
           ? parseFloat(
               state.longitude -
-                state.distance * Math.cos(state.angle) * 0.0000168634,
+                state.speed * Math.cos(state.angle) * 0.0000168634,
             )
           : state.longitude,
       coordinates:
@@ -163,8 +155,7 @@ const MapScreen = () => {
   }
 
   const [state, dispatch] = React.useReducer(reducer, {
-    count: false,
-    distance: 0,
+    speed: 0,
     angle: 0,
     counter: 0,
     latitude: startLat,
@@ -174,8 +165,8 @@ const MapScreen = () => {
   var myRegion = {
     latitude: state.latitude === -1 ? startLat : state.latitude,
     longitude: state.longitude === -1 ? startLong : state.longitude,
-    latitudeDelta: 0.002,
-    longitudeDelta: 0.002,
+    latitudeDelta: 0.007,
+    longitudeDelta: 0.007,
   };
   // Returns View
   return (
@@ -201,8 +192,6 @@ const MapScreen = () => {
           onPress={() => {
             if (centerOnUser) {
               setCenterOnUser(false);
-              setEndLat(-1);
-              setEndLong(-1);
               SetInterval(clearInterval(interval));
             }
           }}
@@ -226,8 +215,8 @@ const MapScreen = () => {
           Latitude: {state.latitude.toFixed(5)} Longitude:{' '}
           {state.longitude.toFixed(5)}
         </Text>
-        <Text>Distance: {state.distance.toFixed(2)}</Text>
-        <Text>Speed: {speed.toFixed(2)}</Text>
+        <Text>Acceleration: {speed.toFixed(2)}</Text>
+        <Text>Speed: {state.speed.toFixed(2)*3.6}</Text>
         <Text>Angle: {(state.angle * (180 / Math.PI)).toFixed(2)}</Text>
         <Text>Counter: {state.counter}</Text>
         <Text>{centerOnUser ? 'measuring' : 'waiting'}</Text>
