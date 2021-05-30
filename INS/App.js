@@ -127,38 +127,41 @@ const MapScreen = () => {
 
   //Reducer Hook
   function reducer(state) {
-    switch (state.counter) {
-      case 10:
-        return {
-          latitude: parseFloat(
-            state.latitude +
-              state.distance * Math.sin(state.angle) * 0.000009009,
-          ),
-          longitude: parseFloat(
-            state.longitude -
-              state.distance * Math.cos(state.angle) * 0.0000168634,
-          ),
-          distance: 0,
-          coordinates:
-            state.coordinates[0].lat === -1
-              ? [{lat: startLat, long: startLong}]
-              : [
-                  {lat: state.latitude, long: state.longitude},
-                  ...state.coordinates,
-                ],
-        };
-      default:
-        return {
-          count: !state.count,
-          distance: parseFloat(state.distance + speed),
-          angle: parseFloat(angle),
-          counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
-          latitude: state.latitude === -1 ? startLat : state.latitude,
-          longitude: state.longitude === -1 ? startLong : state.longitude,
-          coordinates: state.coordinates,
-        };
-    }
+    return {
+      count: !state.count,
+      distance: state.counter === 10 ? 0 : parseFloat(state.distance + speed),
+      angle: parseFloat(angle),
+      counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
+      latitude:
+        state.latitude === -1
+          ? startLat
+          : state.counter === 10
+          ? parseFloat(
+              state.latitude +
+                state.distance * Math.sin(state.angle) * 0.000009009,
+            )
+          : state.latitude,
+      longitude:
+        state.longitude === -1
+          ? startLong
+          : state.counter === 10
+          ? parseFloat(
+              state.longitude -
+                state.distance * Math.cos(state.angle) * 0.0000168634,
+            )
+          : state.longitude,
+      coordinates:
+        state.counter === 10
+          ? state.coordinates[0].lat === -1
+            ? [{lat: startLat, long: startLong}]
+            : [
+                {lat: state.latitude, long: state.longitude},
+                ...state.coordinates,
+              ]
+          : state.coordinates,
+    };
   }
+
   const [state, dispatch] = React.useReducer(reducer, {
     count: false,
     distance: 0,
@@ -232,7 +235,11 @@ const MapScreen = () => {
         <View>
           <FlatList
             data={state.coordinates}
-            renderItem={({item}) => <Text>{item.lat.toFixed(5)} {item.long.toFixed(5)}</Text>}
+            renderItem={({item}) => (
+              <Text>
+                {item.lat.toFixed(5)} {item.long.toFixed(5)}
+              </Text>
+            )}
           />
         </View>
       </View>
