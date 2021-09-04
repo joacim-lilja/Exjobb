@@ -9,7 +9,7 @@
 // skiljer 1110m på 0.01 latitud => 111000m/latitud => 1m = 0.000009009 latitud
 
 import * as React from 'react';
-import type {Node} from 'react';
+import type { Node } from 'react';
 import {
   StyleSheet,
   Text,
@@ -21,16 +21,10 @@ import {
 
 // Navigation
 import 'react-native-gesture-handler';
-import {NavigationContainer} from '@react-navigation/native';
-import {createStackNavigator} from '@react-navigation/stack';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 
 const Stack = createStackNavigator();
-
-//Geolocation
-import Geolocation from 'react-native-geolocation-service';
-
-// Map
-import MapView from 'react-native-maps';
 
 // Sensors
 import {
@@ -42,6 +36,13 @@ import {
 
 setUpdateIntervalForType(SensorTypes.accelerometer, 100);
 setUpdateIntervalForType(SensorTypes.magnetometer, 100);
+setUpdateIntervalForType(SensorTypes.gyroscope, 100);
+
+//Storage
+import * as RNFS from 'react-native-fs'
+var logDate = new Date()
+var pathDate = logDate.toISOString()
+var path = RNFS.DownloadDirectoryPath + '/INS_Log_' + pathDate + '.txt';
 
 // App
 const App: () => Node = () => {
@@ -51,7 +52,7 @@ const App: () => Node = () => {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          options={{title: 'Welcome'}}
+          options={{ title: 'INS App' }}
         />
         <Stack.Screen name="Map" component={MapScreen} />
       </Stack.Navigator>
@@ -61,7 +62,7 @@ const App: () => Node = () => {
 
 // Navigation screens
 //Home Screen
-const HomeScreen = ({navigation}) => {
+const HomeScreen = ({ navigation }) => {
   return (
     <Button title="Go to Map" onPress={() => navigation.navigate('Map')} />
   );
@@ -69,170 +70,135 @@ const HomeScreen = ({navigation}) => {
 
 // Map Screen
 const MapScreen = () => {
-  //Center map on user
+
+  // Toggle for start/stop
   const [centerOnUser, setCenterOnUser] = React.useState(false);
 
-  // Measured coordinates
-  const [startLat, setStartLat] = React.useState(-1);
-  const [startLong, setStartLong] = React.useState(-1);
+  //INS Sensor data
+  //Accelerometer
+  const [accX, setAccX] = React.useState(0);
+  const [accY, setAccY] = React.useState(0);
+  const [accZ, setAccZ] = React.useState(0);
 
-  //INS Speed and Angle
-  const [speed, setSpeed] = React.useState(0);
-  const [angle, setAngle] = React.useState(0);
+  //Magnetometer
+  const [magX, setMagX] = React.useState(0);
+  const [magY, setMagY] = React.useState(0);
+  const [magZ, setMagZ] = React.useState(0);
+
+  //Gyroscope
+  const [gyrX, setGyrX] = React.useState(0);
+  const [gyrY, setGyrY] = React.useState(0);
+  const [gyrZ, setGyrZ] = React.useState(0);
 
   //Reducer interval
   const [interval, SetInterval] = React.useState(0);
 
   // Init coords
   React.useEffect(() => {
-    // Get initial Coordinates from GPS
-    Geolocation.getCurrentPosition(
-      position => {
-        setStartLat(position.coords.latitude);
-        setStartLong(position.coords.longitude);
-      },
-      error => {
-        console.log(error);
-      },
-      {enableHighAccuracy: true},
-    );
-
     // Subscribe to accelerometer data and measure speed
-    const accelSub = accelerometer.subscribe(({y}) => {
-      setSpeed(parseFloat(y));
+    const accelSub = accelerometer.subscribe(({ x, y, z }) => {
+      setAccX(parseFloat(x));
+      setAccY(parseFloat(y));
+      setAccZ(parseFloat(z));
     });
 
     //Subscribe to magnetometer data and measure angle
-    const magSub = magnetometer.subscribe(({x, y}) => {
-      if (Math.atan2(y, x) >= 0) {
-        setAngle(Math.atan2(y, x));
-      } else {
-        setAngle(Math.atan2(y, x) + 2 * Math.PI);
-      }
+    const magSub = magnetometer.subscribe(({ x, y, z }) => {
+      setMagX(parseFloat(x));
+      setMagY(parseFloat(y));
+      setMagZ(parseFloat(z));
+    });
+
+    const gyrSub = magnetometer.subscribe(({ x, y, z }) => {
+      setGyrX(parseFloat(x));
+      setGyrY(parseFloat(y));
+      setGyrZ(parseFloat(z));
     });
 
     //Handle leaving screen
     return () => {
       accelSub.unsubscribe();
       magSub.unsubscribe();
+      gyrSub.unsubscribe();
     };
   }, []);
   // state.counter === 10 ? 0 :
   //Reducer Hook
   function reducer(state) {
     return {
-      speed: parseFloat(state.speed + speed),
-      angle: parseFloat(angle),
       counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
-      latitude:
-        state.latitude === -1
-          ? startLat
-          : state.counter === 10
-          ? parseFloat(
-              state.latitude +
-                state.speed * Math.sin(state.angle) * 0.000009009,
-            )
-          : state.latitude,
-      longitude:
-        state.longitude === -1
-          ? startLong
-          : state.counter === 10
-          ? parseFloat(
-              state.longitude -
-                state.speed * Math.cos(state.angle) * 0.0000168634,
-            )
-          : state.longitude,
-      coordinates:
-        state.counter === 10
-          ? state.coordinates[0].lat === -1
-            ? [{lat: startLat, long: startLong}]
-            : [
-                {lat: state.latitude, long: state.longitude},
-                ...state.coordinates,
-              ]
-          : state.coordinates,
+      data: [{
+        accelx: accX, accely: accY, accelz: accZ,
+        gyrox: gyrX, gyroy: gyrY, gyroz: gyrZ,
+        magnetx: magX, magnety: magY, magnetz: magZ,
+      }, ...state.data],
     };
   }
 
   const [state, dispatch] = React.useReducer(reducer, {
-    speed: 0,
-    angle: 0,
     counter: 0,
-    latitude: startLat,
-    longitude: startLong,
-    coordinates: [{lat: startLat, long: startLong}],
+    data: [{
+      accelx: accX, accely: accY, accelz: accZ,
+      gyrox: gyrX, gyroy: gyrY, gyroz: gyrZ,
+      magnetx: magX, magnety: magY, magnetz: magZ,
+    }],
   });
-  var myRegion = {
-    latitude: state.latitude === -1 ? startLat : state.latitude,
-    longitude: state.longitude === -1 ? startLong : state.longitude,
-    latitudeDelta: 0.007,
-    longitudeDelta: 0.007,
-  };
   // Returns View
   return (
-    <ScrollView scrolling={true}>
-      <View>
-        <Button
-          title="Start measurement"
-          onPress={() => {
-            if (!centerOnUser) {
-              setCenterOnUser(true);
-              setStartLat(startLat);
-              setStartLong(startLong);
-              SetInterval(
-                setInterval(() => {
-                  dispatch();
-                }, 100),
-              );
-            }
-          }}
-        />
-        <Button
-          title="Stop measurement"
-          onPress={() => {
-            if (centerOnUser) {
-              setCenterOnUser(false);
-              SetInterval(clearInterval(interval));
-            }
-          }}
-        />
-      </View>
-      <View>
-        <MapView
-          region={myRegion}
-          style={{top: 0, left: 0, height: 450}}
-          showsUserLocation={true}
-          userLocationUpdateInterval={1000}
-        />
-      </View>
-      <View>
-        <Text>Starting Coordinates:</Text>
-        <Text>
-          Latitude: {startLat.toFixed(5)} Longitude: {startLong.toFixed(5)}
-        </Text>
-        <Text>Ending Coordinates:</Text>
-        <Text>
-          Latitude: {state.latitude.toFixed(5)} Longitude:{' '}
-          {state.longitude.toFixed(5)}
-        </Text>
-        <Text>Acceleration: {speed.toFixed(2)}</Text>
-        <Text>Speed: {state.speed.toFixed(2)*3.6}</Text>
-        <Text>Angle: {(state.angle * (180 / Math.PI)).toFixed(2)}</Text>
-        <Text>Counter: {state.counter}</Text>
-        <Text>{centerOnUser ? 'measuring' : 'waiting'}</Text>
-        <Text>No of elements: {state.coordinates.length} </Text>
+    <View>
+      <ScrollView scrolling={true}>
         <View>
-          <FlatList
-            data={state.coordinates}
-            renderItem={({item}) => (
-              <Text>
-                {item.lat.toFixed(5)} {item.long.toFixed(5)}
-              </Text>
-            )}
+          <Button
+            title="Start measurement"
+            onPress={() => {
+              if (!centerOnUser) {
+                setCenterOnUser(true);
+
+                SetInterval(
+                  setInterval(() => {
+                    dispatch();
+                  }, 100),
+                );
+              }
+            }}
+          />
+          <Button
+            title="Stop measurement"
+            onPress={() => {
+              if (centerOnUser) {
+                setCenterOnUser(false);
+                SetInterval(clearInterval(interval));
+
+                RNFS.write(path, JSON.stringify(state.data))
+                  .then((success) => {
+                    console.log('FILE WRITTEN AT' + path);
+                  })
+                  .catch((err) => {
+                    console.log(err.message);
+                  })
+              }
+            }}
           />
         </View>
-      </View>
-    </ScrollView>
+        <View>
+          <Text>Accelerometer: X: {accX.toFixed(2)}, Y: {accY.toFixed(2)}, Z: {accZ.toFixed(2)}</Text>
+          <Text>Magnetometer: X: {magX.toFixed(2)}, Y: {magY.toFixed(2)}, Z: {magZ.toFixed(2)}</Text>
+          <Text>Gyroscope: X. {gyrX.toFixed(2)}, Y: {gyrY.toFixed(2)}, Z: {gyrZ.toFixed(2)}</Text>
+          <Text>Counter: {state.counter}</Text>
+          <Text>No of elements: {state.data.length} </Text>
+          <View>
+            <FlatList
+              data={state}
+              renderItem={({ item }) => (
+                <Text>
+                  {JSON.stringify(item.data)}
+                </Text>
+              )}
+            />
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -256,3 +222,34 @@ const styles = StyleSheet.create({
 });
 
 export default App;
+
+
+
+
+// latitude:
+//         state.latitude === -1
+//           ? startLat
+//           : state.counter === 10
+//             ? parseFloat(
+//               state.latitude +
+//               state.speed * Math.sin(state.angle) * 0.000009009,
+//             )
+//             : state.latitude,
+//       longitude:
+//         state.longitude === -1
+//           ? startLong
+//           : state.counter === 10
+//             ? parseFloat(
+//               state.longitude -
+//               state.speed * Math.cos(state.angle) * 0.0000168634,
+//             )
+//             : state.longitude,
+//       coordinates:
+//         state.counter === 10
+//           ? state.coordinates[0].lat === -1
+//             ? [{ lat: startLat, long: startLong }]
+//             : [
+//               { lat: state.latitude, long: state.longitude },
+//               ...state.coordinates,
+//             ]
+//           : state.coordinates,

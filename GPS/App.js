@@ -27,8 +27,11 @@ const Stack = createStackNavigator();
 //Geolocation
 import Geolocation from 'react-native-geolocation-service';
 
-// Map
-import MapView from 'react-native-maps';
+//Storage
+import * as RNFS from 'react-native-fs'
+var logDate = new Date(1);
+var pathDate = logDate.toISOString();
+var path = RNFS.DownloadDirectoryPath + '/GPS_Log_' + pathDate + '.txt';
 
 // App
 const App: () => Node = () => {
@@ -38,7 +41,7 @@ const App: () => Node = () => {
                 <Stack.Screen
                     name="Home"
                     component={HomeScreen}
-                    options={{ title: 'Welcome' }}
+                    options={{ title: 'GPS App' }}
                 />
                 <Stack.Screen name="Map" component={MapScreen} />
             </Stack.Navigator>
@@ -63,57 +66,44 @@ const HomeScreen = ({ navigation }) => {
 const MapScreen = ({ navigation, route }) => {
     // var hasLocationPermission = true;
     const [centerOnUser, setCenterOnUser] = React.useState(false);
-    const [startLat, setStartLat] = React.useState(-1);
-    const [startLong, setStartLong] = React.useState(-1);
     const [latitude, setLatitude] = React.useState(-1);
     const [longitude, setLongitude] = React.useState(-1);
     const [interval, SetInterval] = React.useState(0);
 
     function reducer(state) {
-        return {
-            counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
-            latitude: state.latitude === -1 ? startLat : latitude,
-            longitude: state.longitude === -1 ? startLong : longitude,
-            coordinates:
-                state.counter === 10
-                    ? state.coordinates[0].lat === -1
-                        ? [{ lat: startLat, long: startLong }]
-                        : [
-                            { lat: state.latitude, long: state.longitude },
-                            ...state.coordinates,
-                        ]
-                    : state.coordinates,
-
-        }
-    }
-
-    const [state, dispatch] = React.useReducer(reducer, {
-        counter: 0,
-        latitude: startLat,
-        longitude: startLong,
-        coordinates: [{ lat: startLat, long: startLong }],
-    });
-
-    // Update coords on map on user movement
-    React.useEffect(() => {
         Geolocation.getCurrentPosition(
             (position) => {
-                if (startLat === -1) {
-                    setStartLat(position.coords.latitude);
-                    setStartLong(position.coords.longitude);
-                }
                 setLatitude(position.coords.latitude);
                 setLongitude(position.coords.longitude);
             },
             (error) => {
                 console.log(error);
             },
-            { enableHighAccuracy: true }
+            { enableHighAccuracy: true },
+            {interval: 100},
+            {fastestInterval: 100},
+            {distanceFilter: 0.1}
         );
-    }, [state.counter]);
 
-    var myRegion = { latitude: latitude, longitude: longitude, latitudeDelta: 0.007, longitudeDelta: 0.007 };
-    console.log(myRegion);
+
+        return {
+            counter: parseInt(state.counter < 10 ? state.counter + 1 : 0),
+            data: [{
+                latitude: latitude,
+                longitude: longitude,
+            }, ...state.data]
+        }
+    }
+    // state.latitude === -1 ? startLat : latitude
+    // state.longitude === -1 ? startLong : longitude
+    const [state, dispatch] = React.useReducer(reducer, {
+        counter: 0,
+        data: [{
+            latitude: -1,
+            longitude: -1
+        }],
+    });
+
     // Returns View
     return (
         <ScrollView>
@@ -121,8 +111,7 @@ const MapScreen = ({ navigation, route }) => {
                 <Button title="Start measurement" onPress={() => {
                     if (!centerOnUser) {
                         setCenterOnUser(true);
-                        setStartLat(startLat);
-                        setStartLong(startLong);
+
                         SetInterval(
                             setInterval(() => {
                                 dispatch();
@@ -134,38 +123,32 @@ const MapScreen = ({ navigation, route }) => {
                     if (centerOnUser) {
                         setCenterOnUser(false);
                         SetInterval(clearInterval(interval));
+
+                        RNFS.write(path, JSON.stringify(state.data))
+                            .then((success) => {
+                                console.log('FILE WRITTEN AT' + path);
+                            })
+                            .catch((err) => {
+                                console.log(err.message);
+                            })
                     }
                 }} />
-                <MapView
-                    region={myRegion}
-                    style={{ top: 0, left: 0, height: 450 }}
-                    showsUserLocation={true}
-                    userLocationUpdateInterval={1000}
-                />
             </View >
             <View>
-                <Text>Starting Coordinates:</Text>
-                <Text>
-                    Latitude: {startLat.toFixed(5)} Longitude: {startLong.toFixed(5)}
-                </Text>
-                <Text>Ending Coordinates:</Text>
-                <Text>
-                    Latitude: {state.latitude.toFixed(5)} Longitude:{' '}
-                    {state.longitude.toFixed(5)}
-                </Text>
+                <Text>Coordinates:</Text>
+                <Text>Latitude: {latitude.toFixed(5)} Longitude: {longitude.toFixed(5)}</Text>
                 <Text>Counter: {state.counter}</Text>
-                <Text>{centerOnUser ? 'measuring' : 'waiting'}</Text>
-                <Text>No of elements: {state.coordinates.length} </Text>
-                <View>
+                <Text>No of elements: {state.data.length} </Text>
+                {/* <View>
                     <FlatList
-                        data={state.coordinates}
+                        data={state.data}
                         renderItem={({ item }) => (
                             <Text>
-                                {item.lat.toFixed(5)} {item.long.toFixed(5)}
+                                {item}
                             </Text>
                         )}
                     />
-                </View>
+                </View> */}
             </View >
         </ScrollView>
     )
@@ -190,5 +173,4 @@ const styles = StyleSheet.create({
     },
 
 });
-
 export default App;
